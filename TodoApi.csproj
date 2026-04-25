@@ -19,5 +19,12 @@
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
   </ItemGroup>
+	<ItemGroup>
+		<None Remove="Dockerfile" />
+		<Content Include="Dockerfile">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>
+
