@@ -1,0 +1,237 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List - Клиент</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+            .add-form input[type="text"] {
+                flex: 1;
+                padding: 10px;
+                font-size: 16px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+
+            .add-form button {
+                padding: 10px 20px;
+                font-size: 16px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+                .add-form button:hover {
+                    background-color: #45a049;
+                }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background-color: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+            .todo-item.completed .todo-name {
+                text-decoration: line-through;
+                color: #999;
+            }
+
+        .todo-name {
+            flex: 1;
+            font-size: 16px;
+        }
+
+        .todo-item button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-complete {
+            background-color: #2196F3;
+            color: white;
+        }
+
+            .btn-complete:hover {
+                background-color: #0b7dda;
+            }
+
+        .btn-delete {
+            background-color: #f44336;
+            color: white;
+        }
+
+            .btn-delete:hover {
+                background-color: #da190b;
+            }
+
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>📋 Список дел</h1>
+
+    <div class="add-form">
+        <input type="text" id="todoInput" placeholder="Введите новую задачу..." />
+        <button onclick="addTodo()">Добавить</button>
+    </div>
+
+    <div id="todoList" class="loading">Загрузка...</div>
+
+    <script>
+        const apiUrl = 'https://localhost:7235/api/TodoItems';
+
+        // Загрузка всех задач при открытии страницы
+        window.onload = loadTodos;
+
+        async function loadTodos() {
+            const listDiv = document.getElementById('todoList');
+            try {
+                const response = await fetch(apiUrl);
+                const todos = await response.json();
+
+                if (todos.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align:center;color:#999;">Список пуст. Добавьте задачу!</p>';
+                    return;
+                }
+
+                listDiv.innerHTML = todos.map(todo => `
+                    <div class="todo-item ${todo.isComplete ? 'completed' : ''}">
+                        <span class="todo-name">${todo.name}</span>
+                        <button class="btn-complete" onclick="toggleComplete(${todo.id}, ${todo.isComplete})">
+                            ${todo.isComplete ? '↩ Вернуть' : '✓ Готово'}
+                        </button>
+                        <button class="btn-delete" onclick="deleteTodo(${todo.id})">✕ Удалить</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                listDiv.innerHTML = '<p class="error">Ошибка загрузки. Убедитесь, что сервер запущен.</p>';
+                console.error('Ошибка:', error);
+            }
+        }
+
+        async function addTodo() {
+            const input = document.getElementById('todoInput');
+            const name = input.value.trim();
+
+            if (!name) {
+                alert('Введите название задачи!');
+                return;
+            }
+
+            const todoDTO = {
+                name: name,
+                isComplete: false
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(todoDTO)
+                });
+
+                if (response.ok) {
+                    input.value = '';
+                    loadTodos();
+                }
+            } catch (error) {
+                alert('Ошибка при добавлении задачи');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        async function toggleComplete(id, currentStatus) {
+            const todoDTO = {
+                id: id,
+                name: '',
+                isComplete: !currentStatus
+            };
+
+            // Сначала получаем текущее имя задачи
+            try {
+                const getResponse = await fetch(`${apiUrl}/${id}`);
+                const todo = await getResponse.json();
+                todoDTO.name = todo.name;
+
+                const response = await fetch(`${apiUrl}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(todoDTO)
+                });
+
+                if (response.ok) {
+                    loadTodos();
+                }
+            } catch (error) {
+                alert('Ошибка при обновлении задачи');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        async function deleteTodo(id) {
+            if (!confirm('Удалить эту задачу?')) return;
+
+            try {
+                const response = await fetch(`${apiUrl}/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadTodos();
+                }
+            } catch (error) {
+                alert('Ошибка при удалении задачи');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Добавление задачи по нажатию Enter
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+    </script>
+</body>
+</html>
